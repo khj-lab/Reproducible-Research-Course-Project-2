@@ -1,0 +1,110 @@
+---
+title: "Analysis influence of weather to public health and economic problems"
+output: html_document
+---
+
+
+```{r library,  include=FALSE}
+library(dplyr)
+library(ggplot2)
+```
+
+# Introduction 
+
+Storms and other severe weather events can cause both public health and economic problems for communities and municipalities. Many severe events can result in fatalities, injuries, and property damage, and preventing such outcomes to the extent possible is a key concern.
+
+
+This project involves exploring the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.
+
+# Data Processing
+
+Download dataset from the url:
+```{r, eval=FALSE, cache=TRUE}
+
+link <- "http://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+if(!file.exists("StormData")){
+    download.file(url = link, destfile = "StormData")
+}
+```
+
+Read the dataset:
+```{r, echo=TRUE, cache=TRUE}
+StormData <- read.csv(bzfile("StormData"),sep = ",",header=TRUE)
+head(StormData)
+```
+
+Check PROPDMGEXP variables. This means damage estimates were entered as actual dollar amounts.
+```{r, echo=TRUE}
+table(StormData$PROPDMGEXP)
+```
+
+This variables have number and alphabets. Especially, K, M(or m), B were significant. These alphabets mean the magnitude of the number. For example, 1B mean $1,000,000,000, “M” means $1,000,000, “K” means $1,000. So I add new REALPROPDMGEXP column. This means numerial value of PROPDMGEXP.
+
+
+```{r, echo=TRUE}
+StormData$REALPROPDMGEXP <- 1
+StormData$REALPROPDMGEXP[which(StormData$PROPDMGEXP == "K")] <- 1000
+StormData$REALPROPDMGEXP[which(StormData$PROPDMGEXP == "M" | StormData$PROPDMGEXP == "m")] <- 1000000
+StormData$REALPROPDMGEXP[which(StormData$PROPDMGEXP == "B")] <- 1000000000
+table(StormData$REALPROPDMGEXP)
+```
+
+
+# What is most harmful to population health?
+
+First, I research Death toll by event type. Look the below bar graph. Tornade event is most harmful to population health.
+
+```{r, echo=TRUE}
+StormData %>%
+      select(FATALITIES, EVTYPE) %>%
+      group_by(EVTYPE) %>%
+      summarise(SumFATALITIES = sum(FATALITIES)) %>%
+      top_n(n = 8, wt = SumFATALITIES) %>%
+      ggplot(aes(y = SumFATALITIES, x = reorder(x = EVTYPE, X = SumFATALITIES), fill=EVTYPE))+
+      geom_bar(stat = "identity", show.legend = FALSE) +
+      xlab(label = "Event Type") +
+      ylab(label = "Death toll") +
+      coord_flip() +
+      theme_light()
+```
+
+Second, I research Injuries by event type. Look the below bar graph. Also, Tornade is harmful to polulation health.
+
+```{r, echo=TRUE}
+StormData %>%
+      select(INJURIES, EVTYPE) %>%
+      group_by(EVTYPE) %>%
+      summarise(SumINJURIES = sum(INJURIES)) %>%
+      top_n(n = 8, wt = SumINJURIES) %>%
+      ggplot(aes(y = SumINJURIES, x = reorder(x = EVTYPE, X = SumINJURIES), fill=EVTYPE))+
+      geom_bar(stat = "identity", show.legend = FALSE) +
+      xlab(label = "Event Type") +
+      ylab(label = "INJURIES") +
+      coord_flip() +
+      theme_light()
+```
+
+# What is the greatest economic consequences?
+
+Finaly, I research the greatest economic consequences by Event type. Look the below bar graph. We can see flood is the greatest economic consequences.
+
+
+```{r, echo=TRUE}
+StormData %>%
+      select(PROPDMG, REALPROPDMGEXP, EVTYPE) %>%
+      group_by(EVTYPE) %>%
+      mutate(SumREALPROPDMGEXP = (PROPDMG * REALPROPDMGEXP)) %>%
+      summarise(SumPROPDMGEXP = sum(SumREALPROPDMGEXP)) %>%
+      top_n(n = 8, wt = SumPROPDMGEXP) %>%
+      ggplot(aes(y = SumPROPDMGEXP, x = reorder(x = EVTYPE, X = SumPROPDMGEXP), fill=EVTYPE))+
+      geom_bar(stat = "identity", show.legend = FALSE) +
+      xlab(label = "Event Type") +
+      ylab(label = "Property damage estimates") +
+      coord_flip() +
+      theme_light()
+```
+
+# Conclusion
+
+We can see Tornade the most harmful to population health. On the other hand, flood is the greatest economic consequences.  
+
